@@ -1,0 +1,190 @@
+---
+title: "R with your own texts"
+---
+
+To use this Notebook, just follow along and click on the green arrows. 
+
+Install Packages (oackages only need to be installed once):
+
+```{r}
+install.packages("stringr") # for string operations
+install.packages("dplyr") # for data manipulation
+install.packages("tm")  # for text mining
+install.packages("SnowballC") # for text stemming
+install.packages("wordcloud") # word-cloud generator 
+install.packages("RColorBrewer") # color palettes
+install.packages("tidytext") # for text mining
+```
+
+Install Libraries (libraries need to be installed every time you use RStudio):
+
+```{r}
+library("tm")
+library("SnowballC")
+library("wordcloud")
+library("RColorBrewer")
+library("dplyr")
+library("stringr")
+library("tidytext")
+```
+
+How to make a word cloud and do word association. 
+
+Adapted and copied from - http://www.sthda.com/english/wiki/text-mining-and-word-cloud-fundamentals-in-r-5-simple-steps-you-should-know
+
+
+1. Pick a text
+
+```{r}
+text <- readLines(file.choose())
+```
+2. Turn text into a Corpus:
+
+```{r}
+docs <- Corpus(VectorSource(text))
+```
+3. Transform the text and clean it up:
+
+```{r}
+toSpace <- content_transformer(function (x , pattern ) gsub(pattern, " ", x))
+docs <- tm_map(docs, toSpace, "/")
+docs <- tm_map(docs, toSpace, ",")
+docs <- tm_map(docs, toSpace, "@")
+docs <- tm_map(docs, toSpace, "\\|")
+docs <- tm_map(docs, toSpace, "¶")
+```
+
+4. Clean by removing stopwords. You can use the default english or pick your own:
+
+```{r}
+# Convert the text to lower case
+docs <- tm_map(docs, content_transformer(tolower))
+# Remove numbers
+docs <- tm_map(docs, removeNumbers)
+# Remove english common stopwords
+docs <- tm_map(docs, removeWords, stopwords("english"))
+# Remove your own stop word
+# specify your stopwords as a character vector
+docs <- tm_map(docs, removeWords, c("http", "amp", "äôs", "ä", "donäôt")) 
+# Remove punctuations
+docs <- tm_map(docs, removePunctuation)
+# Eliminate extra white spaces
+docs <- tm_map(docs, stripWhitespace)
+# Text stemming
+docs <- tm_map(docs, stemDocument)
+
+
+```
+
+5. Now create a matrix for the Word Cloud:
+
+```{r}
+dtm <- TermDocumentMatrix(docs)
+m <- as.matrix(dtm)
+v <- sort(rowSums(m),decreasing=TRUE)
+d <- data.frame(word = names(v),freq=v)
+head(d, 10)
+```
+
+6. Lastly create the Word Cloud:
+
+```{r}
+set.seed(1234)
+wordcloud(words = d$word, freq = d$freq, min.freq = 3,
+          max.words=100, random.order=FALSE, rot.per=0.35, 
+          colors=brewer.pal(8, "Dark2"))
+```
+
+7. Frequency. You can sort by frequency of words.
+
+```{r}
+
+findFreqTerms(dtm, lowfreq = 50)
+
+```
+
+Create a quick table of most Frequently used words
+
+```{r}
+head(d, 10)
+
+```
+
+
+
+8. BONUS Barplot example of most frequently used words:
+
+```{r}
+barplot(d[1:15,]$freq, las = 2, names.arg = d[1:15,]$word,
+        col ="lightblue", main ="Most frequent words",
+        ylab = "Word frequencies")
+```
+
+
+Word cloud with sentiment analysis
+
+Adapted and copied from: http://www.michaeljgrogan.com/tidytext-word-clouds-sentiment-r/
+
+1. Select a text file to work with.
+
+```{r}
+WordList <- str_split(readLines(file.choose()), pattern = " ")
+text<-paste(unlist(WordList), collapse=' ')
+str(text)
+```
+
+2. Turn into a data frame
+```{r}
+text_df <- data_frame(line = 1, text = text)
+text_df
+```
+
+3. Remove common/stop words
+
+```{r}
+text_df2 <- text_df %>%
+  unnest_tokens(word,text)
+
+data(stop_words)
+
+text_df2 <- text_df2 %>%
+
+  anti_join(stop_words)
+
+```
+
+4. Create a table
+```{r}
+tibble<-text_df2 %>%
+  count(word,sort=TRUE)
+
+tibblefiltered = tibble %>% filter(n > 1)
+```
+5. View table
+```{r}
+tibble
+```
+
+
+6. Filter table and remove stop words
+```{r}
+text_df2 %>%
+  anti_join(stop_words) %>%
+  count(word) %>%
+  with(wordcloud(word,scale = c(6, 0.5), n, max.words = 100))
+```
+7. Create Word Cloud with positive and negative
+```{r}
+library(reshape2)
+text_df2 %>%
+  filter()
+text_df2 %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort=TRUE) %>%
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+  comparison.cloud(scale = c(4, 0.4), colors = c("gray20", "gray80"),
+                   max.words=100)
+```
+
+
+
