@@ -1,0 +1,108 @@
+---
+title: "Text Analysis with Tweets"
+output: html_notebook
+---
+
+This notebook follows the instructions created by Brennon Borbon from his blog https://brennonborbon.wordpress.com/2017/10/07/sentiment-analysis-tweets/
+
+
+```{r}
+install.packages("readr")
+install.packages("ggplot2")
+install.packages("tidytext")
+install.packages("tm")
+install.packages("wordcloud")
+install.packages("dplyr")
+install.packages("tidyr")
+install.packages("lubridate")
+```
+
+
+```{r}
+library(readr)
+library(ggplot2)
+library(tidytext)
+library(tm)
+library(wordcloud)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+```
+Make sure you are in your working directory. One way of ensuring this is to put any files that you are working with in the same folder as this Notebook.
+
+In line 36 replace "ilhan-cleaned.csv" with your .CSV file.
+
+```{r}
+tweets <- read.csv("ilhan-cleaned.csv", stringsAsFactors = F)
+```
+
+
+```{r}
+tidy_tweets <- tweets %>%
+ group_by(user_screen_name, user_name, id)%>%
+ mutate(ln=row_number())%>%
+ unnest_tokens(word,text)%>%ungroup()
+```
+```{r}
+tidy_wrd <- tidy_tweets %>% 
+count(word,sort=TRUE)
+
+tweets_sentiment <-tidy_tweets%>% 
+ inner_join(get_sentiments("bing"))
+```
+
+
+```{r}
+total_wrd <-tweets_sentiment%>%
+ count(word,sort=TRUE)
+
+```
+
+```{r}
+wordcloud(total_wrd$word,total_wrd$n, min.freq =5, scale=c(5, .2), random.order = FALSE, random.color = FALSE,colors = brewer.pal(8, "Dark2"))
+```
+
+```{r}
+positive_negative <-tweets_sentiment %>% count(word,sentiment,sort=TRUE)
+
+```
+
+
+```{r}
+positive_negative %>% filter(sentiment=='positive') %>% head(20) %>% 
+ggplot(aes(x=word,y=n))+geom_bar(stat="identity",fill="blue") +
+ theme(axis.text.x=element_text(angle=90))+labs(title="Mostring Positive Words",y="count")
+
+```
+
+```{r}
+
+positive_negative %>% filter(sentiment=='negative')%>% head(20) %>% 
+ggplot(aes(x=word,y=n))+geom_bar(stat="identity",fill="red")+
+theme(axis.text.x=element_text(angle=90))+labs(title="Mostring Negative Words",y="count")
+```
+```{r}
+top_10 <- tidy_tweets %>% inner_join(get_sentiments("nrc")) %>% 
+ count(word,sentiment) %>% 
+ group_by(sentiment)%>% top_n(10)%>%
+ ungroup() %>% 
+ mutate(word=reorder(word,n))%>% ggplot(aes(x=word,y=n,fill=sentiment)) +
+ geom_col(show.legend = FALSE) +
+ facet_wrap(~ sentiment, scales = "free") +
+ coord_flip()
+
+top_10
+```
+```{r}
+positive<-positive_negative %>% filter(sentiment=='positive')
+
+wordcloud(positive$word,positive$n, min.freq =5, scale=c(5, .2), random.order = FALSE, random.color = FALSE,colors = brewer.pal(9,"RdBu"))
+```
+
+```{r}
+negative <-positive_negative %>% filter(sentiment=='negative')
+
+wordcloud(negative$word,negative$n, min.freq =5, scale=c(5, .2), random.order = FALSE, random.color = FALSE,colors = brewer.pal(9, "RdBu"))
+```
+
+
